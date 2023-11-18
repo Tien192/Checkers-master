@@ -1,8 +1,8 @@
 
-// window.setInterval(function () {
-//     myGame.AIturn();
-// }, 1000);
-//
+window.setInterval(function () {
+    myGame.AIturn();
+}, 2000);
+
 
 class Game {
     constructor() {
@@ -19,11 +19,10 @@ class Game {
         this.isDoubleMode = false;
 
         
-        this.player1Time = 120;
-        this.player2Time = 120;
+        this.player1Time = 90;
+        this.player2Time = 90;
         this.timerInterval;
     }
-
 
     startTimer() {
         this.timerInterval = setInterval(() => {
@@ -115,9 +114,50 @@ class Game {
         return isValidMove(locC, locT, temMvs);
     };
 
+    AIturn(){
+        if(this.AI && (this.turn == 1) && !this.thinking){
+            this.moveAI();
+        }
+    }
 
-    //added this cause i noticed some lag when moveAI is put in checker turn , night change it later
-    
+    moveAI() {
+        
+        console.log("turn" + this.turn);
+        this.thinking = true;
+        let tem = null;
+        if(this.isDoubleMode){
+            console.log("it's double AI");
+            let temMvs = findMovesAI(currBoard.board, currBoard.kingsList, this.turn);
+            console.log(temMvs.length);
+            console.log(this.selectedCheckerLocation[0] + " " + this.selectedCheckerLocation[1]);
+            for (let i = 0; i < temMvs.length; i++) {   
+                if ((temMvs[i].pastlocation[0] == this.selectedCheckerLocation[0]) && (temMvs[i].pastlocation[1] == this.selectedCheckerLocation[1])) {
+                    console.log("AI double");
+                    tem = temMvs[i];
+                    break;
+                }
+            }
+
+        }
+        else{
+            console.log("not double AI");
+            tem = AInextMove();
+        }
+        if(tem.jump) console.log("last loc: "+tem.pastlocation+"    next loc: "+tem.nextlocation);
+
+        tem.findTilesANDCheckers();
+        makeMoveAI(currBoard.board, currBoard.kingsList, tem, 1);
+        this.next(tem);
+
+        //console.log(noMoreMoves(currBoard.board, currBoard.kingsList, 2));
+        if(noMoreMoves(currBoard.board, currBoard.kingsList, 2)){
+            console.log("game ended");
+            this.winner = 1;
+            document.getElementById("winner").innerHTML = "Red won!";
+            this.display_winner();
+            return;
+        }
+    }
     next(lastMove) {
 
         currBoard.reDrawBoard();
@@ -155,6 +195,7 @@ class Game {
             document.getElementById("turn").innerHTML = "BLUE turn";
         }
     }
+    
 
     onePlayer() {
         this.AI = true;
@@ -174,7 +215,9 @@ class Game {
         document.getElementById("red").style.display = "block";
         document.getElementById("blue").style.display = "block";
         document.getElementById("turn").style.display = "block";
-        document.getElementById("turn").innerHTML = "BLUE turn"; 
+        document.getElementById("turn").innerHTML = "BLUE turn";
+        document.getElementById("redtimer").style.display = "block";
+        document.getElementById("bluetimer").style.display = "block";
     }
     display_winner(){
         console.log("game ended");

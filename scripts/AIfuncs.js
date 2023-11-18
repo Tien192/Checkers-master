@@ -27,6 +27,219 @@ const positionValuesAI = [
     [4, 0, 4, 0, 5, 0, 5, 0]
 ];
 
+function AInextMove() {
+
+    //cloning
+    var simulated_board = JSON.parse(JSON.stringify(currBoard.board));
+    var simulated_kings = JSON.parse(JSON.stringify(currBoard.kingsList));
+
+    var alpha = NEG_INFINITY;
+    var beta = INFINITY;
+    var available_moves = findMovesAI(simulated_board, simulated_kings, 1);
+    console.log(available_moves.length);
+    var max_move = null;
+    if(available_moves.length > 1){
+        var max = alpha_beta(simulated_board, simulated_kings, available_moves, 9, alpha, beta, 1);
+
+    //all moves that have max value
+    var best_moves = [];
+    var max_move = null;
+    for (var i = 0; i < available_moves.length; i++) {
+        var next_move = available_moves[i];
+
+        if (next_move.score == max) {
+            max_move = next_move;
+            best_moves.push(next_move);
+        }
+    }
+
+    //random selection, if theres more than one move wi the same value
+    //console.log("is  " + available_moves.length);
+
+    if (best_moves.length > 1) {
+        var index = Math.floor(Math.random() * (best_moves.length - 1));
+        max_move = best_moves[index];
+    }
+   
+
+    }
+    else max_move = available_moves[0];
+     // console.log("move  " + max_move.score);
+    return max_move;
+}
+function evaluate_position(x, y) {
+    if (x == 0 || x == 7 || y == 0 || y == 7) {
+        return 5;
+    }
+    else {
+        return 3;
+    }
+}
+
+function evaluate(board, kings) {
+    var AI_pieces = 0;
+    var AI_kings = noKings(kings, 1);
+    var player_pieces = 0;
+    var player_kings = noKings(kings, 2);
+    var AI_safe_sum = 0;
+    var player_safe_sum = 0;
+    var AI_in_danger = 0;
+    var player_in_danger = 0;
+
+    for (let row in board) {
+        for (let col in board[row]) {
+            if (board[row][col] == 1) {
+                AI_pieces++;
+                AI_safe_sum += safeAndMayKill(board, kings, 1, row, col);
+                AI_in_danger += inDanger(board, kings, 1, row, col);
+            } else if (board[row][col] == 2) {
+                player_pieces++;
+                player_safe_sum += safeAndMayKill(board, kings, 2, row, col);
+                player_in_danger += inDanger(board, kings, 2, row, col);
+            }
+        }
+    }
+
+    var piece_diff = AI_pieces - player_pieces;
+    var king_diff = AI_kings - player_kings;
+    var avg_safe_diff = (AI_safe_sum - player_safe_sum) - 3 * (AI_in_danger - player_in_danger);
+
+    var eval = 10 * piece_diff + 8 * king_diff + 20 * avg_safe_diff;
+
+    return eval;
+}
+
+function alpha_beta(board, kings, moves, depth, alpha, beta, player) {
+    if (depth <= 0 || noMoreMoves(board, kings, player)) {
+        return evaluate(board, kings);
+        //return new_eval(player, board, kings);
+    }
+    simulated_board = JSON.parse(JSON.stringify(board));
+    simulated_kings = JSON.parse(JSON.stringify(kings));
+    if (player == 1) {
+        var max = NEG_INFINITY;
+        for (var i = 0; i < moves.length; i++) {
+            //move computer piece
+            var AI_move = moves[i];
+            makeMoveAI(simulated_board, simulated_kings, AI_move, 1);
+            //get available moves for human
+            var player_moves = findMovesAI(simulated_board, simulated_kings, 2);
+            //get min value for this move
+            var min_score = alpha_beta(simulated_board, simulated_kings, player_moves, depth - 1, alpha, beta, 2);
+            moves[i].score = min_score;
+            //compare to min and update, if necessary
+            if (min_score > max) {
+                max = min_score;
+            }
+            if (max >= beta) {
+                break;
+            }
+            if (max > alpha) {
+                alpha = max;
+            }
+        }
+        return max;
+    }
+    else if (player == 2) {
+        var min = INFINITY;
+        for (var i = 0; i < moves.length; i++) {
+            //move human piece
+            var player_move = moves[i];
+            makeMoveAI(simulated_board, simulated_kings, player_move, 2);
+
+            //get available moves for computer
+            var AI_moves = findMovesAI(simulated_board, simulated_kings, 1);
+
+            //get max value for this move
+            var max_score = alpha_beta(simulated_board, simulated_kings, AI_moves, depth - 1, alpha, beta, 1);
+
+            //compare to min and update, if necessary
+            if (max_score < min) {
+                min = max_score;
+            }
+            moves[i].score = min;
+            if (min <= alpha) {
+                break;
+            }
+            if (min < beta) {
+                beta = min;
+            }
+        }
+        return min;
+    }
+}
+
+function inDanger(board, kings, player, row, col) {
+
+    if (row == 0 || row == 7 || col == 0 || col == 7) {
+        //if stuck
+        if ((row == 0 && col == 7)) {
+            return 0;
+        }
+        return 1;
+    }
+    x = parseInt(row);
+    y = parseInt(col);
+
+    if (player == 1) {    // red
+
+        if ((board[x + 1][y - 1] == 2) && (board[x - 1][y + 1] == 0)) {
+            // - - 0 
+            // - 1 -
+            // 2 - -
+            return 3;
+        }
+        else if ((board[x + 1][y + 1] == 2) && (board[x - 1][y - 1] == 0)) {
+            // 0 - - 
+            // - 1 -
+            // - - 2
+            return 3;
+        }
+        else if (isKing(2, [x - 1, y - 1], kings) && (board[x - 1][y - 1] == 2) && (board[x + 1][y + 1] == 0)) {
+            // 2* -  - 
+            // -  1  -
+            // -  -  0
+            return 4;
+        }
+        else if (isKing(2, [x - 1, y + 1], kings) && (board[x - 1][y + 1] == 2) && (board[x + 1][y - 1] == 0)) {
+            // -  -  2* 
+            // -  1  -
+            // 0  -  -
+            return 4;
+        }
+
+    }
+    else if (player == 2) {   // blue
+
+        if ((board[x - 1][y + 1] == 1) && (board[x + 1][y - 1] == 0)) {
+            // - - 1 
+            // - 2 -
+            // 0 - -
+            return 3;
+        }
+        else if ((board[x - 1][y - 1] == 1) && (board[x + 1][y + 1] == 0)) {
+            // 1 - - 
+            // - 2 -
+            // - - 0
+            return 3;
+        }
+        else if (isKing(1, [x + 1, y + 1], kings) && (board[x + 1][y + 1] == 1) && (board[x - 1][y - 1] == 0)) {
+            // 0  -  - 
+            // -  2  -
+            // -  -  1*
+            return 4;
+        }
+        else if (isKing(1, [x + 1, y - 1], kings) && (board[x + 1][y - 1] == 1) && (board[x - 1][y + 1] == 0)) {
+            // -  -  0 
+            // -  2  -
+            // 1* -  -
+            return 4;
+        }
+
+    }
+
+}
+
 function safeAndMayKill(board, kings, player, row, col) {
 
     if (row == 0 || row == 7 || col == 0 || col == 7) {
